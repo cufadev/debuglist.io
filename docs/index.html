@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" data-l="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bug/mail · clean your e-mail list</title>
+<meta name="description" content="Open-source e-mail list cleaner: syntax, typos, disposable domains, DNS, SMTP handshake and catch-all detection. It never sends a message.">
+<style>
+:root {
+  --bg: #f6f5f1; --surface: #ffffff; --text: #1b1b18; --muted: #5d5c54;
+  --line: #dcdad0; --accent: #c2410c; --accent-tint: #fbeee6; --on-accent: #ffffff;
+  --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --unk: #52525b;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
+:root:not([data-theme="light"]) { color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141412; --surface: #1d1d1a; --text: #ecebe4; --muted: #a8a79d;
+    --line: #34332d; --accent: #fb923c; --accent-tint: #2a2118; --on-accent: #141412;
+    --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --unk: #a1a1aa;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+h1, h2, h3 { line-height: 1.12; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+code, pre { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.9em; }
+
+/* idioma: solo se ve el activo */
+html[data-l="es"] [lang="en"], html[data-l="en"] [lang="es"] { display: none !important; }
+
+header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 0; }
+.brand { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.02em; text-decoration: none; color: var(--text); }
+.brand b { color: var(--accent); font-weight: 800; }
+.tools { display: flex; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 0.9rem; font-weight: 700; padding: 6px 12px; min-height: 36px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--text); color: var(--bg); }
+.gh { font-weight: 700; font-size: 0.95rem; text-decoration: none; border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 14px; min-height: 36px; display: inline-flex; align-items: center; color: var(--text); }
+.gh:hover { border-color: var(--accent); color: var(--accent); }
+
+.hero { display: grid; gap: 40px; grid-template-columns: 1fr; padding: 40px 0 64px; align-items: center; }
+@media (min-width: 880px) { .hero { grid-template-columns: 1.05fr 0.95fr; } }
+.hero h1 { font-size: clamp(2.4rem, 6.2vw, 4rem); }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.lede { color: var(--muted); font-size: 1.15rem; max-width: 52ch; margin: 18px 0 26px; }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn { display: inline-flex; align-items: center; min-height: 48px; padding: 0 22px; border-radius: 10px; font-weight: 700; text-decoration: none; border: 2px solid var(--accent); transition: transform .2s var(--ease); }
+.btn:hover { transform: translateY(-2px); }
+.btn--solid { background: var(--accent); color: var(--on-accent); }
+.btn--ghost { color: var(--accent); }
+.shot { margin: 0; }
+.shot img { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 40px rgb(0 0 0 / .14); }
+.shot .dark { display: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .shot .light { display: none; } :root:not([data-theme="light"]) .shot .dark { display: block; } }
+
+section { padding: 56px 0; border-top: 1px solid var(--line); }
+section > .wrap > h2 { font-size: clamp(1.7rem, 4vw, 2.4rem); margin-bottom: 8px; }
+.sub { color: var(--muted); margin: 0 0 28px; max-width: 60ch; }
+
+ol.layers { list-style: none; padding: 0; margin: 0; display: grid; gap: 0; counter-reset: l; }
+ol.layers li { display: grid; grid-template-columns: 2.4rem 1fr; gap: 6px 14px; padding: 16px 0; border-bottom: 1px solid var(--line); counter-increment: l; }
+ol.layers li::before { content: counter(l); font-weight: 800; color: var(--accent); font-size: 1.3rem; line-height: 1.3; }
+ol.layers strong { display: block; }
+ol.layers span { color: var(--muted); }
+
+.verdicts { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.verdict { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.verdict h3 { font-size: 1.1rem; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.verdict h3::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--c); }
+.verdict p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+pre { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; overflow-x: auto; margin: 0 0 14px; line-height: 1.7; }
+pre .c { color: var(--muted); }
+
+.limits { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.limits div { background: var(--accent-tint); border-radius: 12px; padding: 16px 18px; }
+.limits h3 { font-size: 1.05rem; margin-bottom: 6px; }
+.limits p { margin: 0; font-size: 0.97rem; }
+
+footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); font-size: 0.95rem; }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="#">Bug<b>/</b>mail</a>
+    <div class="tools">
+      <div class="seg" role="group" aria-label="Language / Idioma">
+        <button type="button" data-set="en" aria-pressed="true">EN</button>
+        <button type="button" data-set="es" aria-pressed="false">ES</button>
+      </div>
+      <a class="gh" href="https://github.com/cufadev/debuglist.io" rel="noopener">GitHub</a>
+    </div>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>
+        <span lang="en">Clean your e-mail list <em>before</em> you send to it.</span>
+        <span lang="es">Limpiá tu lista de correo <em>antes</em> de enviarle.</span>
+      </h1>
+      <p class="lede">
+        <span lang="en">Fewer bounces, better sender reputation. Bug/mail checks every address in layers and never sends a message.</span>
+        <span lang="es">Menos rebotes y mejor reputación de envío. Bug/mail revisa cada dirección por capas y nunca manda un mensaje.</span>
+      </p>
+      <div class="cta">
+        <a class="btn btn--solid" href="#install"><span lang="en">Install</span><span lang="es">Instalar</span></a>
+        <a class="btn btn--ghost" href="https://github.com/cufadev/debuglist.io" rel="noopener"><span lang="en">View source</span><span lang="es">Ver el código</span></a>
+      </div>
+    </div>
+    <figure class="shot">
+      <img class="light" src="screenshot-light.png" width="900" height="1386" alt="Bug/mail web interface showing a verified list with valid, risky, unknown and invalid results">
+      <img class="dark" src="screenshot-dark.png" width="900" height="1386" alt="Bug/mail web interface in dark mode">
+    </figure>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2><span lang="en">Six layers, one verdict</span><span lang="es">Seis capas, un veredicto</span></h2>
+    <p class="sub"><span lang="en">Each address goes through these checks in order. Results are cached per domain and each address is only checked once.</span><span lang="es">Cada dirección pasa por estos controles en orden. El resultado se guarda por dominio y cada dirección se revisa una sola vez.</span></p>
+    <ol class="layers">
+      <li><div><strong><span lang="en">Syntax</span><span lang="es">Sintaxis</span></strong><span><span lang="en">Malformed addresses are dropped without touching the network.</span><span lang="es">Las direcciones mal formadas se descartan sin tocar la red.</span></span></div></li>
+      <li><div><strong><span lang="en">Typos</span><span lang="es">Errores de tipeo</span></strong><span><span lang="en"><code>ana@gmial.com</code> is flagged with the suggestion <code>ana@gmail.com</code>.</span><span lang="es"><code>ana@gmial.com</code> se marca con la sugerencia <code>ana@gmail.com</code>.</span></span></div></li>
+      <li><div><strong><span lang="en">Disposable and role accounts</span><span lang="es">Descartables y cuentas de rol</span></strong><span><span lang="en">Throwaway domains and addresses like <code>info@</code> or <code>ventas@</code> are marked risky.</span><span lang="es">Dominios descartables y direcciones como <code>info@</code> o <code>ventas@</code> quedan como riesgosas.</span></span></div></li>
+      <li><div><strong>DNS</strong><span><span lang="en">The domain must exist and accept mail (MX, or the A-record fallback).</span><span lang="es">El dominio tiene que existir y aceptar correo (MX, o el A como respaldo).</span></span></div></li>
+      <li><div><strong><span lang="en">SMTP handshake</span><span lang="es">Handshake SMTP</span></strong><span><span lang="en">Asks the mail server <code>RCPT TO</code> and stops there. Tries up to three servers.</span><span lang="es">Le pregunta al servidor <code>RCPT TO</code> y corta ahí. Prueba hasta tres servidores.</span></span></div></li>
+      <li><div><strong><span lang="en">Catch-all detection</span><span lang="es">Detección de catch-all</span></strong><span><span lang="en">Also asks about a random address. If that one is accepted too, the server accepts everything and a "yes" means nothing.</span><span lang="es">También pregunta por una dirección al azar. Si esa también se acepta, el servidor acepta todo y un "sí" no significa nada.</span></span></div></li>
+    </ol>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span lang="en">What to do with the result</span><span lang="es">Qué hacer con el resultado</span></h2>
+    <p class="sub"><span lang="en">Four verdicts, one action each.</span><span lang="es">Cuatro veredictos, una acción para cada uno.</span></p>
+    <div class="verdicts">
+      <div class="verdict" style="--c: var(--ok)"><h3>valid</h3><p><span lang="en">Send.</span><span lang="es">Enviá.</span></p></div>
+      <div class="verdict" style="--c: var(--warn)"><h3>risky</h3><p><span lang="en">Review: role accounts, catch-all domains, possible typos.</span><span lang="es">Revisá: cuentas de rol, dominios catch-all, posibles typos.</span></p></div>
+      <div class="verdict" style="--c: var(--unk)"><h3>unknown</h3><p><span lang="en">Retry later: greylisting or timeouts.</span><span lang="es">Reintentá más tarde: greylisting o timeouts.</span></p></div>
+      <div class="verdict" style="--c: var(--bad)"><h3>invalid</h3><p><span lang="en">Drop it.</span><span lang="es">Sacala.</span></p></div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2><span lang="en">Install and run</span><span lang="es">Instalar y usar</span></h2>
+    <p class="sub"><span lang="en">Python 3.10+, with <code>flask</code> and <code>dnspython</code>. It runs on your machine: this page is only a description, there is no hosted version.</span><span lang="es">Python 3.10+, con <code>flask</code> y <code>dnspython</code>. Corre en tu máquina: esta página solo lo describe, no hay versión online.</span></p>
+<pre><code>git clone https://github.com/cufadev/debuglist.io.git
+cd debuglist.io
+python3 -m venv .venv
+.venv/bin/pip install -e .
+
+<span class="c"># is outbound port 25 open from here?</span>
+bugmail doctor
+<span class="c"># one address</span>
+bugmail check ana@example.com
+<span class="c"># a whole list (CSV or one address per line)</span>
+bugmail file list.csv -o result.csv
+<span class="c"># web interface at http://127.0.0.1:5000</span>
+bugmail serve</code></pre>
+    <p class="sub" style="margin:0"><span lang="en">The result file keeps your columns and adds <code>bugmail_status</code>, <code>bugmail_reason</code> and <code>bugmail_suggestion</code>.</span><span lang="es">El archivo de salida conserva tus columnas y agrega <code>bugmail_status</code>, <code>bugmail_reason</code> y <code>bugmail_suggestion</code>.</span></p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2><span lang="en">Limits, honestly</span><span lang="es">Límites, sin vueltas</span></h2>
+    <p class="sub"><span lang="en">No verifier is exact. Read this before you trust a list.</span><span lang="es">Ningún verificador es exacto. Leelo antes de confiar en una lista.</span></p>
+    <div class="limits">
+      <div><h3><span lang="en">Port 25 is often blocked</span><span lang="es">El puerto 25 suele estar bloqueado</span></h3><p><span lang="en">Many ISPs and clouds block it. <code>bugmail doctor</code> tells you; if it is blocked, run from a server where it is open or use <code>--no-smtp</code>.</span><span lang="es">Muchos proveedores y nubes lo bloquean. <code>bugmail doctor</code> te avisa; si está bloqueado, corrélo desde un servidor donde esté abierto o usá <code>--no-smtp</code>.</span></p></div>
+      <div><h3><span lang="en">Some servers will not tell</span><span lang="es">Algunos servidores no responden</span></h3><p><span lang="en">Catch-all, blocked probes and greylisting end up as <code>risky</code> or <code>unknown</code>, never as a false "valid".</span><span lang="es">Catch-all, sondeos bloqueados y greylisting terminan como <code>risky</code> o <code>unknown</code>, nunca como un falso "valid".</span></p></div>
+      <div><h3><span lang="en">Mind your IP</span><span lang="es">Cuidá tu IP</span></h3><p><span lang="en">Large volumes from one IP can get it blocklisted. Keep the default spacing and trust your sending provider's bounce reports last.</span><span lang="es">Volúmenes grandes desde una IP pueden hacer que la bloqueen. Mantené el espaciado por defecto y tomá como verdad final los reportes de rebote de tu proveedor de envío.</span></p></div>
+      <div><h3><span lang="en">Use it on your own list</span><span lang="es">Usalo con tu propia lista</span></h3><p><span lang="en">For people who gave you their address. Not for collecting or guessing other people's. Check the law that applies to you (GDPR, Ley 25.326).</span><span lang="es">Para gente que te dio su dirección. No para juntar ni adivinar las de otros. Revisá la ley que te aplique (GDPR, Ley 25.326).</span></p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>GPL-3.0-or-later · <a href="https://github.com/cufadev/debuglist.io" rel="noopener">cufadev/debuglist.io</a></span>
+    <span><span lang="en">Useful? </span><span lang="es">¿Te sirvió? </span><a href="https://cafecito.app/cufanic" rel="noopener"><span lang="en">Buy me a coffee</span><span lang="es">Invitame un cafecito</span></a></span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement, KEY = "bugmail-lang";
+  function pick() {
+    var q = new URLSearchParams(location.search).get("lang");
+    if (q === "es" || q === "en") return q;
+    try { var s = localStorage.getItem(KEY); if (s === "es" || s === "en") return s; } catch (e) {}
+    return (navigator.language || "en").toLowerCase().indexOf("es") === 0 ? "es" : "en";
+  }
+  function set(l) {
+    root.setAttribute("data-l", l); root.lang = l;
+    document.querySelectorAll("[data-set]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.set === l)); });
+    document.title = l === "es" ? "Bug/mail · limpiá tu lista de correo" : "Bug/mail · clean your e-mail list";
+    try { localStorage.setItem(KEY, l); } catch (e) {}
+  }
+  document.querySelectorAll("[data-set]").forEach(function (b) { b.addEventListener("click", function () { set(b.dataset.set); }); });
+  set(pick());
+})();
+</script>
+</body>
+</html>
