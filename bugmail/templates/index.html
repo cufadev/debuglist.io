@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Bug/mail</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c2410c'/%3E%3Cpath d='M20 6 12 26' stroke='white' stroke-width='3.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f5f1; --surface: #ffffff; --text: #1b1b18; --muted: #66655d;
+    --line: #dcdad0; --line-strong: #bdbaab;
+    --accent: #c2410c; --accent-tint: #fbeee6;
+    --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --unk: #52525b;
+    --on-color: #ffffff;
+    --radius: 10px;
+    --ease: cubic-bezier(.22, 1, .36, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141412; --surface: #1d1d1a; --text: #ecebe4; --muted: #a09f95;
+      --line: #34332d; --line-strong: #55534a;
+      --accent: #fb923c; --accent-tint: #2a2118;
+      --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --unk: #a1a1aa;
+      --on-color: #141412;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    accent-color: var(--accent); caret-color: var(--accent);
+  }
+  ::selection { background: var(--accent); color: var(--on-color); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sr { position: absolute; left: -9999px; }
+  [hidden] { display: none !important; }
+
+  main { max-width: 720px; margin: 0 auto; padding: 56px 16px 72px; }
+
+  header h1 { font-size: 2.25rem; line-height: 1.1; margin: 0; letter-spacing: -.02em; }
+  header h1 b { color: var(--accent); font-weight: 700; }
+  header p { color: var(--muted); margin: 8px 0 0; max-width: 56ch; }
+
+  .notice {
+    display: flex; gap: 10px; align-items: flex-start; margin: 24px 0 0; padding: 12px 14px;
+    background: var(--accent-tint); border-radius: var(--radius); font-size: .925rem;
+  }
+  .notice svg { flex: none; margin-top: 2px; color: var(--accent); }
+
+  section { margin-top: 32px; }
+  h2 { font-size: 1rem; font-weight: 650; margin: 0 0 10px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .muted { color: var(--muted); font-size: .9rem; }
+
+  /* controls */
+  input[type=email], textarea {
+    width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid var(--line-strong);
+    border-radius: var(--radius); background: var(--bg); color: var(--text); font: inherit;
+    transition: border-color .15s var(--ease), background-color .15s var(--ease);
+  }
+  input[type=email]::placeholder, textarea::placeholder { color: var(--muted); opacity: .8; }
+  input[type=email]:hover, textarea:hover { border-color: var(--muted); }
+  input[type=email]:focus, textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
+  textarea { min-height: 112px; resize: vertical; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px;
+    padding: 0 18px; border: 1px solid transparent; border-radius: var(--radius);
+    background: var(--accent); color: var(--on-color); font: inherit; font-weight: 600;
+    text-decoration: none; cursor: pointer; white-space: nowrap;
+    transition: filter .15s var(--ease), transform .15s var(--ease);
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn[disabled] { opacity: .6; cursor: progress; filter: none; transform: none; }
+  .btn.secondary { background: transparent; color: var(--text); border-color: var(--line-strong); }
+  .btn.secondary:hover { background: var(--bg); filter: none; }
+  .btn.text { display: inline; background: none; color: var(--accent); min-height: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
+  .spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .row { display: flex; gap: 8px; }
+  .row > input { flex: 1; min-width: 0; }
+
+  /* single check */
+  #result { margin-top: 14px; min-height: 24px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  #result.err { color: var(--bad); }
+
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: .8rem; font-weight: 650;
+    color: var(--on-color); line-height: 1.5;
+  }
+  .valid { background: var(--ok); } .risky { background: var(--warn); }
+  .invalid { background: var(--bad); } .unknown { background: var(--unk); }
+
+  /* list input */
+  .drop {
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 22px 16px; text-align: center;
+    border: 1.5px dashed var(--line-strong); border-radius: var(--radius); background: var(--bg); cursor: pointer;
+    transition: border-color .15s var(--ease), background-color .15s var(--ease);
+  }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-tint); }
+  .drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .drop strong { font-weight: 650; }
+  .drop svg { color: var(--muted); }
+  .drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .or { display: flex; align-items: center; gap: 12px; margin: 14px 0; color: var(--muted); font-size: .85rem; }
+  .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .actions { margin-top: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+  /* progress + results */
+  .bar { display: flex; height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s var(--ease); }
+  .bar.split > i { transition: width .4s var(--ease); }
+  #progress { margin-top: 18px; }
+  #progressText { display: block; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+  .breakdown { list-style: none; margin: 14px 0 0; padding: 0; }
+  .breakdown li {
+    display: grid; grid-template-columns: 84px 56px 1fr; gap: 10px; align-items: baseline;
+    padding: 10px 0; border-top: 1px solid var(--line);
+  }
+  .breakdown li:first-child { border-top: 0; }
+  .breakdown .n { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+  .breakdown .do { color: var(--muted); font-size: .925rem; }
+  #summary h2 { margin-top: 22px; }
+
+  .err-msg { margin: 14px 0 0; color: var(--bad); }
+  .err-msg:empty { display: none; }
+
+  footer { margin-top: 40px; color: var(--muted); font-size: .85rem; }
+
+  @media (max-width: 520px) {
+    main { padding-top: 36px; }
+    header h1 { font-size: 2rem; }
+    .row { flex-direction: column; }
+    .breakdown li { grid-template-columns: 76px 44px 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Bug<b>/</b>mail</h1>
+    <p>Revisá tu lista de correos antes de enviar y sacá las que rebotan. La verificación no manda ningún mensaje.</p>
+  </header>
+
+  {% if not smtp %}
+  <p class="notice">
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 6.2v.1"/></svg>
+    <span>Modo sin SMTP: se revisan el formato y los servidores de correo del dominio, pero no se confirma que la casilla exista.</span>
+  </p>
+  {% endif %}
+
+  <section aria-labelledby="h-one">
+    <h2 id="h-one">Una dirección</h2>
+    <div class="card">
+      <label for="email" class="sr">Correo a verificar</label>
+      <div class="row">
+        <input type="email" id="email" placeholder="nombre@dominio.com" spellcheck="false" autocomplete="off" autocapitalize="off">
+        <button class="btn" id="check" type="button">Verificar</button>
+      </div>
+      <div id="result" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-list">
+    <h2 id="h-list">Una lista</h2>
+    <div class="card">
+      <label class="drop" id="drop" for="file">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>
+        <strong id="dropTitle">Elegí un archivo o soltalo acá</strong>
+        <span class="muted" id="dropHint">CSV o TXT, hasta 5 MB y 20.000 direcciones</span>
+        <input type="file" id="file" accept=".csv,.txt,text/csv,text/plain">
+      </label>
+      <div class="or">o pegá las direcciones</div>
+      <label for="text" class="sr">Direcciones</label>
+      <textarea id="text" placeholder="ana@ejemplo.com&#10;luis@ejemplo.com" spellcheck="false"></textarea>
+      <div class="actions">
+        <button class="btn" id="start" type="button">Verificar lista</button>
+      </div>
+      <p id="error" class="err-msg" role="alert"></p>
+
+      <div id="progress" hidden>
+        <div class="bar" aria-hidden="true"><i id="fill"></i></div>
+        <span id="progressText" class="muted"></span>
+      </div>
+
+      <div id="summary" hidden>
+        <h2>Resultado</h2>
+        <div class="bar split" aria-hidden="true">
+          <i id="s-valid" style="background:var(--ok)"></i><i id="s-risky" style="background:var(--warn)"></i><i id="s-unknown" style="background:var(--unk)"></i><i id="s-invalid" style="background:var(--bad)"></i>
+        </div>
+        <ul class="breakdown">
+          <li><span><span class="badge valid">Válidas</span></span><span class="n" id="c-valid">0</span><span class="do">Enviá solo a estas.</span></li>
+          <li><span><span class="badge risky">Riesgo</span></span><span class="n" id="c-risky">0</span><span class="do">Revisalas: casillas genéricas (info@), dominios que aceptan todo o posibles errores de tipeo.</span></li>
+          <li><span><span class="badge unknown">Dudosas</span></span><span class="n" id="c-unknown">0</span><span class="do">El servidor no respondió. Volvé a probar más tarde.</span></li>
+          <li><span><span class="badge invalid">Inválidas</span></span><span class="n" id="c-invalid">0</span><span class="do">Sacalas de la lista: rebotarían.</span></li>
+        </ul>
+        <div class="actions">
+          <a class="btn" id="download" href="#" download>Descargar resultado (CSV)</a>
+          <button class="btn secondary" id="again" type="button">Otra lista</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Bug/mail 2.0 · código abierto (GPL-3). El archivo descargado conserva tus columnas y agrega el estado de cada dirección.</footer>
+</main>
+
+<script>
+  const LABEL = { valid: "Válida", invalid: "Inválida", risky: "Riesgo", unknown: "Dudosa" };
+  const REASON = {
+    accepted: "El servidor aceptó la casilla.", domain_only: "El dominio recibe correo (casilla sin comprobar).",
+    syntax: "Formato inválido.", domain_not_found: "El dominio no existe.", no_mail_server: "El dominio no recibe correo.",
+    mailbox_not_found: "La casilla no existe.", disposable: "Dominio de correo descartable.",
+    role: "Casilla genérica (info@, ventas@…).", catch_all: "El dominio acepta cualquier casilla; no se puede confirmar.",
+    possible_typo: "Posible error de tipeo en el dominio.", mailbox_full: "La casilla está llena.",
+    temporary_failure: "El servidor pidió reintentar más tarde.", blocked_by_server: "El servidor bloqueó la consulta.",
+    smtp_unreachable: "No se pudo conectar con el servidor de correo.", dns_error: "Falló la consulta DNS.",
+    sender_refused: "El servidor rechazó el remitente de prueba.", mx_not_public: "El servidor de correo está en una red privada.",
+    unexpected_reply: "Respuesta inesperada del servidor."
+  };
+  const STATUSES = ["valid", "risky", "unknown", "invalid"];
+  const $ = id => document.getElementById(id);
+
+  async function post(url, options) {
+    const res = await fetch(url, options);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "Error " + res.status);
+    return body;
+  }
+
+  function busy(btn, on, label) {
+    btn.disabled = on;
+    if (on) { btn.dataset.label = btn.textContent; btn.textContent = ""; btn.append(Object.assign(document.createElement("span"), { className: "spinner" }), label); }
+    else btn.textContent = btn.dataset.label || btn.textContent;
+  }
+
+  /* ---- single address ---- */
+  async function checkOne() {
+    const out = $("result"), btn = $("check");
+    out.replaceChildren(); out.classList.remove("err");
+    busy(btn, true, "Verificando…");
+    try {
+      const r = await post("/api/check", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: $("email").value })
+      });
+      const badge = Object.assign(document.createElement("span"), { className: "badge " + r.status, textContent: LABEL[r.status] || r.status });
+      const msg = document.createElement("span");
+      msg.append(REASON[r.reason] || r.reason);
+      if (r.suggestion) {
+        const use = Object.assign(document.createElement("button"), { type: "button", className: "btn text", textContent: r.suggestion });
+        use.onclick = () => { $("email").value = r.suggestion; checkOne(); };
+        msg.append(" ¿Quisiste decir ", use, "?");
+      }
+      out.append(badge, msg);
+    } catch (e) {
+      out.classList.add("err"); out.textContent = e.message;
+    } finally { busy(btn, false); }
+  }
+  $("check").onclick = checkOne;
+  $("email").addEventListener("keydown", e => { if (e.key === "Enter") checkOne(); });
+
+  /* ---- file picker / drag and drop ---- */
+  const drop = $("drop");
+  function showFile() {
+    const f = $("file").files[0];
+    $("dropTitle").textContent = f ? f.name : "Elegí un archivo o soltalo acá";
+    $("dropHint").textContent = f ? (f.size / 1024).toFixed(f.size < 10240 ? 1 : 0) + " KB · tocá para cambiarlo" : "CSV o TXT, hasta 5 MB y 20.000 direcciones";
+  }
+  $("file").addEventListener("change", showFile);
+  ["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", e => {
+    if (e.dataTransfer.files.length) { $("file").files = e.dataTransfer.files; showFile(); }
+  });
+
+  /* ---- list job ---- */
+  $("start").onclick = async () => {
+    $("error").textContent = ""; $("summary").hidden = true; $("progress").hidden = true;
+    const form = new FormData(), file = $("file").files[0];
+    if (file) form.append("file", file); else form.append("text", $("text").value);
+    busy($("start"), true, "Verificando…");
+    try {
+      const job = await post("/api/jobs", { method: "POST", body: form });
+      $("fill").style.width = "0"; $("progress").hidden = false;
+      await follow(job.id, job.total);
+    } catch (e) {
+      $("progress").hidden = true; $("error").textContent = e.message;
+    } finally { busy($("start"), false); }
+  };
+
+  async function follow(id, total) {
+    for (;;) {
+      const s = await post("/api/jobs/" + id);
+      $("fill").style.width = (100 * s.done / total) + "%";
+      $("progressText").textContent = s.done.toLocaleString("es-AR") + " de " + total.toLocaleString("es-AR") + " verificadas";
+      if (s.status === "error") throw new Error(s.error || "Falló la verificación.");
+      if (s.status === "done") return showSummary(id, s.counts, total);
+      await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+
+  function showSummary(id, counts, total) {
+    const sum = STATUSES.reduce((a, k) => a + (counts[k] || 0), 0) || total;
+    for (const k of STATUSES) {
+      $("c-" + k).textContent = (counts[k] || 0).toLocaleString("es-AR");
+      $("s-" + k).style.width = (100 * (counts[k] || 0) / sum) + "%";
+    }
+    $("download").href = "/api/jobs/" + id + "/csv";
+    $("progress").hidden = true; $("summary").hidden = false;
+    $("summary").scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+
+  $("again").onclick = () => {
+    $("summary").hidden = true; $("file").value = ""; $("text").value = ""; showFile(); $("text").focus();
+  };
+</script>
+</body>
+</html>
